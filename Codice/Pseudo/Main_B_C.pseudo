@@ -1,0 +1,33 @@
+void Main(){
+    // Configuro la PIA
+    PIA.configurePIA_TX()
+
+    // Abilito le interruzioni
+    SR = SR & $D8FF
+
+    // Incremento il contatore per i caratteri presenti in memoria
+    // (scritti in fase di definizione del codice M68k)
+    byte_send ++
+
+    // Invio i dati (lo faccio post-incremento per evitare conflitti dovuti all'interrupt)
+    PIA["PRB"] = buffer[byte_send-1]
+
+    while(true){
+        // Ciclo caldo
+    }
+}
+
+class PIA(){
+    void configurePIA_TX(){
+        // Configuro i collegamenti data tra le due pia come uscite (ponendo tutti i bit a uno in DRA)
+        this.PIA["DRB"] = %11111111
+
+        // Configurazione del registro di controllo effettivo della PIA
+        // CRA7-6 = 00 -> Bit di sola lettura
+        // CRA 5-4-3 = 100 -> modalità di funzionamento del pin CA2
+        // CRA 2 = 1 -> Al prossimo accesso ad indirizzo pari (DRA)
+        // si accedera' all'indirizzo PRB (Registro dato per la comunicazione)
+        // CRA 1-0 = 01 -> modalita' di funzionamento del pin CA1 (precisamente la sua gestione)
+        this.PIA["CRB"] = %00100101
+    }
+}

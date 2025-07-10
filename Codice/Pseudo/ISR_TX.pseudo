@@ -1,0 +1,9 @@
+void ISR_TX(){
+    // Lettura fittizia
+    a = PIA["PRB"]
+
+    // Invio il prossimo carattere
+    PIA["PRB"] = buff[byte_send]
+    byte_send++
+
+}

@@ -1,0 +1,95 @@
+// -----> [DATA] <----- //
+// Dichiarazione della variabile del TAS
+byte TAS; // Semaforo 
+
+/*
+*   0 -> Nessun possesso
+*   1 -> Posseso di B
+*   -1 -> Possesso di C
+*/
+
+byte possesso = 0
+
+// Buffer dato
+byte buff[] = {0}
+
+// Variabili di conteggio
+byte ch_msg = 0
+byte ch_tot = 0
+byte msg_b = 0
+byte msg_c = 0
+
+// Variabili per la terminazione
+byte end_b = 0
+byte end_c = 0
+
+/*
+*   Nella traccia si fa intendere che l'ordine con cui vengono ricevuti i messaggi
+*   non è prefissato fino a che non vi è la prima ISR (o prima iterazione), che una volta svolta
+*   detterà l'ordine effettivo degli andamenti.
+*/
+function ISR_B() {
+    if (possesso == 0){
+        if(TAS == Verde){
+            TAS = Rosso
+
+            if (possesso == 0){
+                possesso = 1
+            }
+            
+            TAS = Verde
+        }else{
+            RTE
+        }
+    }
+
+    // Arrivato a questo punto sono sicuro di avere un ordine prefissato, quindi la variabile 
+    // possesso potrà essere solo o 1 o -1
+    if (possesso == 1 && end_b == 0){
+        buff[ch_tot] = PIAB.readPRA() 
+        ch_tot++
+        ch_msg++
+
+        if (ch_msg == N){
+            ch_msg = 0
+            msg_b++
+            
+            if (msg_b >= K){
+                // Se entro qui vuol dire che sono nella fase 2
+
+                if (buff[ch_tot-N] == 0){
+                    if (msg_b == msg_c){
+                        if (end_c == 1){
+                            // Caso fine, sono nella stessa iterazione con entrambi i valori iniziali a 0
+                            end_b = 1
+                            RTE
+                        }
+                    }else{
+                        // Caso in cui devo aspettare ancora un messaggio, imposto l'end_b
+                        end_b = 1
+                    }
+                }else{
+                    // Caso in cui il primo elemento e' diverso da 0 e sono a fine iterazione
+                    if (msg_b == msg_c){
+                        // Indipendentemente dal valore di end_c lo vado ad impostare a 0
+                        end_c = 0
+                    }
+                }
+            }
+            
+            possesso = -1
+
+            // Caso in cui C si è sospeso mentre eseguiva B
+            // 1. Verifico se si è effettivamente sospeso
+            if (c_suspended == 1){ 
+
+                // 2. Controllo che da quando ho settato possesso non abbia proseguito e che non abbia finito
+                if (possesso == -1 && end_c == 0){
+                    ch_tot++
+                    ch_msg++
+                    buff[ch_tot-1] = PIAC.readPRA()
+                }
+            }
+        }
+    }
+}

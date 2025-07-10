@@ -1,0 +1,252 @@
+		ORG		$8200
+CRAB		EQU		$00002005
+PRAB		EQU		$00002004
+CRAC		EQU		$00002009
+PRAC		EQU		$00002008
+N		EQU		3
+K		EQU		3
+SEM		DC.B		0
+POS		DC.B		0
+CMSG		DC.B		0
+CTOT		DC.B		0
+MSGB		DC.B		0
+MSGC		DC.B		0
+ENDC		DC.B		0
+ENDB		DC.B		0
+BUFF		DS.B		80 *Considerando 8 messaggi totali inviati da ambo le parti
+
+		ORG		$8000
+MAIN		MOVE.L	#CRAB,-(A7)
+		MOVE.L	#PRAB,-(A7)
+		JSR		DVIN
+		ADDA.L	#4,A7
+		MOVE.L	#CRAC,-(A7)
+		MOVE.L	#PRAC,-(A7)
+		JSR		DVIN
+		ADDA.L	#4,A7
+		MOVE.W	SR,D0
+		ANDI.W	#$D8FF,D0
+		MOVE.W	D0,SR
+LOOP		JMP		LOOP
+
+DVIN		MOVE.L	A0,-(A7)
+		MOVE.L	A1,-(A7)
+		MOVE.L	A2,-(A7)
+		MOVEA.L	A7,A0
+		ADDA.L	#16,A0 *Salta tutti gli indirizzi che sono stati salvati nello stack
+		MOVE.L	(A0)+,A1
+		MOVE.L	(A0),A2
+		MOVE.B	#%00000000,(A1)
+		MOVE.B	#%00100101,(A2)
+		MOVE.L	(A7)+,A2
+		MOVE.L	(A7)+,A1
+		MOVE.L	(A7)+,A0
+		RTS
+
+		ORG		$8500
+ISR_B		MOVE.L	D0,-(A7)
+		MOVE.L	D1,-(A7)
+		MOVE.L	D2,-(A7)
+		MOVE.L	D3,-(A7)
+		MOVE.L	D4,-(A7)
+		MOVE.L	D5,-(A7)
+		MOVE.L	A0,-(A7)
+		MOVE.B	POS,D0
+		CMP.B		#0,D0
+		BNE		SKIP_TAS
+		TAS		SEM
+		BNE		IB_RTE
+		MOVE.B	POS,D0
+		CMP.B		#0,D0
+		BNE		SKIP_IMP
+		MOVE.B	#1,D0
+		MOVE.B	D0,POS
+SKIP_IMP	MOVE.B	#0,SEM
+SKIP_TAS	MOVE.B	ENDB,D1
+		MOVE.B	CMSG,D2
+		MOVE.B	CTOT,D3
+		MOVE.L	#BUFF,A0
+		CMP.B		#1,D0
+		BNE		IB_RTE
+		CMP.B		#0,D1
+		BNE		IB_RTE
+		MOVE.B	PRAB,(A0,D3)
+		ADDQ.B	#1,D2
+		MOVE.B	D2,CMSG
+		ADDQ.B	#1,D3
+		MOVE.B	D3,CTOT
+		CMP.B		#N,D2
+		BNE		IB_RTE
+		MOVE.B	#0,D2
+		MOVE.B	D2,CMSG
+		MOVE.B	MSGB,D1
+		ADDQ.B	#1,D1
+		MOVE.B	D1,MSGB
+		CMP.B		#K,D1
+		BLT		CAW
+
+		* if(buff(num-N) == 0)
+		SUBQ.B	#N,D3
+		MOVE.B	(A0,D3),D4
+		CMP.B		 #0,D4
+		BNE		ELSEBP
+		
+		*if(msg_b == msg_c)
+		MOVE.B	MSGC,D5
+		CMP.B		D5,D1
+		BNE		ELSEG
+		
+		* if(end_b == 1)
+		MOVE.B	ENDC,D4
+		CMP.B		#1,D4
+		BNE		CAW
+		MOVE.B	#1,ENDB
+		JMP		IB_RTE
+
+ELSEG		MOVE.B	#1,ENDB
+		JMP		CAW
+
+ELSEBP	MOVE.B	MSGC,D5
+		CMP.B		D5,D1
+		BNE		CAW
+		MOVE.B	#0,ENDC
+
+CAW		MOVE.B	#-1,D0
+		MOVE.B	D0,POS
+		MOVE.B	CRAC,D4
+		ANDI.B		#$80,D4
+		BEQ		IB_RTE
+		MOVE.B	POS,D0
+		MOVE.B	ENDC,D4
+		CMP.B		#-1,D0
+		BNE		IB_RTE
+		CMP.B		#0,D4
+		BNE		IB_RTE
+		MOVE.B	CTOT,D1
+		ADDQ.B	#1,D1
+		MOVE.B	D1,CTOT
+		MOVE.B	CMSG,D2
+		ADDQ.B	#1,D2
+		MOVE.B	D2,CMSG
+		SUBQ.B	#1,D1
+		MOVE.B	PRAC,(A0,D1)
+IB_RTE	MOVE.L	(A7)+,A0
+		MOVE.L	(A7)+,D5
+		MOVE.L	(A7)+,D4
+		MOVE.L	(A7)+,D3
+		MOVE.L	(A7)+,D2
+		MOVE.L	(A7)+,D1
+		MOVE.L	(A7)+,D0
+		RTE
+
+		ORG		$8700
+ISR_C		MOVE.L	D0,-(A7)
+		MOVE.L	D1,-(A7)
+		MOVE.L	D2,-(A7)
+		MOVE.L	D3,-(A7)
+		MOVE.L	D4,-(A7)
+		MOVE.L	D5,-(A7)
+		MOVE.L	A0,-(A7)
+		MOVE.B	POS,D0
+		CMP.B		#0,D0
+		BNE		TASC
+		TAS		SEM
+		BNE		IC_RTE
+		MOVE.B	POS,D0
+		CMP.B		#0,D0
+		BNE		IMPC
+		MOVE.B	#-1,D0
+		MOVE.B	D0,POS
+IMPC		MOVE.B	#0,SEM
+TASC		MOVE.B	ENDC,D1
+		MOVE.B	CMSG,D2
+		MOVE.B	CTOT,D3
+		MOVE.L	#BUFF,A0
+		CMP.B		#-1,D0
+		BNE		IC_RTE
+		CMP.B		#0,D1
+		BNE		IC_RTE
+		MOVE.B	PRAC,(A0,D3)
+		ADDQ.B	#1,D2
+		MOVE.B	D2,CMSG
+		ADDQ.B	#1,D3
+		MOVE.B	D3,CTOT
+		CMP.B		#N,D2
+		BNE		IC_RTE
+		MOVE.B	#0,D2
+		MOVE.B	D2,CMSG
+		MOVE.B	MSGC,D1
+		ADDQ.B	#1,D1
+		MOVE.B	D1,MSGC
+		CMP.B		#K,D1
+		BLT		CAWC
+		
+		* if(buff(num-N) == 0)
+		SUBQ.B	#N,D3
+		MOVE.B	(A0,D3),D4
+		CMP.B		 #0,D4
+		BNE		ELSECP
+		
+		*if(msg_b == msg_c)
+		MOVE.B	MSGB,D5
+		CMP.B		D5,D1
+		BNE		ELSEP
+		
+		* if(end_b == 1)
+		MOVE.B	ENDB,D4
+		CMP.B		#1,D4
+		BNE		CAWC
+		MOVE.B	#1,ENDC
+		JMP		IC_RTE
+
+ELSEP		MOVE.B	#1,ENDC
+		JMP		CAWC
+
+ELSECP	MOVE.B	MSGB,D5
+		CMP.B		D5,D1
+		BNE		CAWC
+		MOVE.B	#0,ENDB
+
+CAWC		MOVE.B	#1,D0
+		MOVE.B	D0,POS
+		MOVE.B	CRAB,D4
+		ANDI.B		#$80,D4
+		BEQ		IC_RTE
+		MOVE.B	POS,D0
+		MOVE.B	ENDB,D4
+		CMP.B		#1,D0
+		BNE		IC_RTE
+		CMP.B		#0,D4
+		BNE		IC_RTE
+		MOVE.B	CTOT,D1
+		ADDQ.B	#1,D1
+		MOVE.B	D1,CTOT
+		MOVE.B	CMSG,D2
+		ADDQ.B	#1,D2
+		MOVE.B	D2,CMSG
+		SUBQ.B	#1,D1
+		MOVE.B	PRAB,(A0,D1)
+IC_RTE	MOVE.L	(A7)+,A0
+		MOVE.L	(A7)+,D5
+		MOVE.L	(A7)+,D4
+		MOVE.L	(A7)+,D3
+		MOVE.L	(A7)+,D2
+		MOVE.L	(A7)+,D1
+		MOVE.L	(A7)+,D0
+		RTE
+		END		MAIN
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

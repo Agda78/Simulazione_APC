@@ -1,0 +1,27 @@
+void Main(){
+    // Avvio delle subroutine di configurazione delle PIA
+    PIAB.configurePIA()
+    PIAC.configurePIA()
+
+    // Abilitazione delle interruzioni
+    SR = SR & $D8FF
+
+    while(true){
+        // Ciclo caldo
+    }
+}
+
+class PIA(){
+    void configurePIA(){
+        // Configuro i collegamenti data tra le due pia come ingressi (ponendo tutti i bit a zero in DRA)
+        this.PIA["DRA"] = %00000000
+
+        // Configurazione del registro di controllo effettivo della PIA
+        // CRA7-6 = 00 -> Bit di sola lettura
+        // CRA 5-4-3 = 100 -> modalità di funzionamento del pin CA2
+        // CRA 2 = 1 -> Al prossimo accesso ad indirizzo pari (DRA)
+        // si accedera' all'indirizzo PRA (Registro dato per la comunicazione)
+        // CRA 1-0 = 01 -> modalita' di funzionamento del pin CA1 (precisamente la sua gestione)
+        this.PIA["CRA"] = %00100101
+    }
+}
